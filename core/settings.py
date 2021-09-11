@@ -165,7 +165,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': ["rest_framework_json_api.parsers.JSONParser", ],
     # Filtering
     'DEFAULT_FILTER_BACKENDS':
-        ['django_filters.rest_framework.DjangoFilterBackend', ],
+        [
+            'rest_framework_json_api.filters.QueryParameterValidationFilter',
+            'rest_framework_json_api.django_filters.DjangoFilterBackend',
+            'rest_framework.filters.SearchFilter',
+        ],
     # Renderer
     'DEFAULT_RENDERER_CLASSES':
         ['rest_framework_json_api.renderers.JSONRenderer', ],
@@ -191,5 +195,15 @@ REST_FRAMEWORK = {
 
 if DEBUG:
     REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'].append(
-        'rest_framework_json_api.renderers.BrowsableAPIRenderer',
+        # A custom BrowsableAPIRenderer that fixes the issue
+        # when the QueryParameterValidationFilter raises a
+        # ValidationError; shows a proper 4XX error with
+        # details instead of a 500 error (unlike the default
+        # BrowsableAPIRenderer)
+        'api_v1.renderers.BrowsableAPIRenderer',
     )
+
+# JSON:API settings
+
+JSON_API_UNIFORM_EXCEPTIONS = True
+JSON_API_FORMAT_TYPES = 'underscore'
