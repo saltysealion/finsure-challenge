@@ -1,4 +1,9 @@
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.views import APIView
+from rest_framework.exceptions import NotAcceptable
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+from rest_framework_csv.renderers import CSVRenderer
 from finsure.models import Lender
 from .serializers import LenderSerializer
 
@@ -13,3 +18,55 @@ class LenderViewSet(ModelViewSet):
         'id',
         'code',
     )
+
+
+class LenderImportAPIView(APIView):
+    def post(self, request, format=None):
+        pass
+
+
+class LenderExportAPIView(APIView):
+    # Keep JSON renderer for errors and add CSV renderer
+    renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES + [CSVRenderer]
+
+    CSV_FORMAT = 'text/csv'
+    EXCLUDE_FIELDS = ['id']
+
+    def get(self, request, format=None):
+        # Will use Django's shortcut for converting models to dict
+        from django.forms.models import model_to_dict
+
+        if request.accepted_media_type == self.CSV_FORMAT:
+            # Prepare lenders for export
+            result = []
+            for lender in Lender.objects.all():
+                result.append(
+                    model_to_dict(lender, exclude=self.EXCLUDE_FIELDS)
+                )
+
+            return Response(
+                result,
+                headers={
+                    # Suggest filename
+                    'Content-Disposition': 'attachment; filename=lenders.csv'
+                }
+            )
+
+        # If we reached this code it means the request was made with
+        # `application/vnd.api+json` in Accept header. For the purpose
+        # of the challenge, we deny this request too
+        else:
+            raise NotAcceptable
+
+    def get_renderer_context(self):
+        '''
+        Overrides the headers in the renderer context to
+        enforce custom order of the CSV columns.
+        '''
+        context = super().get_renderer_context()
+        context['header'] = [
+            # Order fields as per the model excluding the ID
+            x.name for x in Lender._meta.fields
+            if x.name not in self.EXCLUDE_FIELDS
+        ]
+        return context
