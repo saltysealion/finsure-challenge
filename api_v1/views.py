@@ -26,17 +26,25 @@ class LenderImportAPIView(APIView):
 
 
 class LenderExportAPIView(APIView):
+    '''
+    A custom endpoint allowing to export lenders into a CSV file.
+    Made with extendibility in mind.
+    '''
+
     # Keep JSON renderer for errors and add CSV renderer
     renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES + [CSVRenderer]
 
-    CSV_FORMAT = 'text/csv'
-    EXCLUDE_FIELDS = ['id']
+    # Custom constants
+    CSV_FORMAT = 'text/csv'  # CSV media type
+    EXCLUDE_FIELDS = ['id']  # Fields to exclude from Lender model
 
     def get(self, request, format=None):
-        # Will use Django's shortcut for converting models to dict
-        from django.forms.models import model_to_dict
-
+        # Logic for CSV export
         if request.accepted_media_type == self.CSV_FORMAT:
+            # CSV renderer expects a list of dicts, which it converts into
+            # a CSV. We'll use Django's shortcut for model to dict conversion
+            from django.forms.models import model_to_dict
+
             # Prepare lenders for export
             result = []
             for lender in Lender.objects.all():
@@ -47,14 +55,15 @@ class LenderExportAPIView(APIView):
             return Response(
                 result,
                 headers={
-                    # Suggest filename
+                    # Suggest a filename for the CSV
                     'Content-Disposition': 'attachment; filename=lenders.csv'
                 }
             )
 
         # If we reached this code it means the request was made with
-        # `application/vnd.api+json` in Accept header. For the purpose
-        # of the challenge, we deny this request too
+        # `application/vnd.api+json` in Accept header, because all other
+        # media types are rejected during content negotiation. For the
+        # purpose of the challenge, we deny this media type too
         else:
             raise NotAcceptable
 
